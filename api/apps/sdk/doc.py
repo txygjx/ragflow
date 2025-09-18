@@ -36,6 +36,7 @@ from api.db.services.document_service import DocumentService
 from api.db.services.file2document_service import File2DocumentService
 from api.db.services.file_service import FileService
 from api.db.services.knowledgebase_service import KnowledgebaseService
+from api.db.services.dialog_service import filter_chunks_by_tags
 from api.utils.api_utils import construct_json_result, get_parser_config, check_duplicate_ids
 from rag.nlp import search
 from rag.prompts import keyword_extraction
@@ -1465,6 +1466,9 @@ def retrieval_test(tenant_id):
             highlight=highlight,
             rank_feature=label_question(question, kbs)
         )
+
+        ranks = filter_chunks_by_tags(req, ranks) # 按标签过滤，新加的,测试测试
+
         if use_kg:
             ck = settings.kg_retrievaler.retrieval(question,
                                                    [k.tenant_id for k in kbs],

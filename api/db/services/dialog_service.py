@@ -623,3 +623,50 @@ def ask(question, kb_ids, tenant_id):
         answer = ans
         yield {"answer": answer, "reference": {}}
     yield decorate_answer(answer)
+
+
+def filter_chunks_by_tags(req, ranks):
+    """
+    根据 req 中的 tag 过滤 ranks['chunks']，移除不符合标签条件的块。
+    
+    Args:
+        req (dict): 请求参数，包含 'tag' 字段，如 ['反恐怖主义机构']
+        ranks (dict): 检索结果，包含 'chunks' 列表，每个 chunk 有 'tag_feas' 字段
+    
+    Returns:
+        dict: 过滤后的 ranks，包含符合标签条件的 chunks 测试测试
+    """
+    # 按照tag过滤，新加的代码
+    import json
+    # 获取标签过滤条件
+    required_tags = set(req.get('tag', []))
+    if not required_tags:
+        return ranks  # 无标签条件，直接返回原结果,txyxtyu
+
+    # 复制 ranks 以避免修改原始数据
+    filtered_ranks = ranks.copy()
+    filtered_chunks = []
+
+    # 遍历 chunks，检查 tag_feas 是否包含所有 required_tags
+    for chunk in ranks['chunks']:
+        # 解析 tag_feas（字符串形式的 JSON）
+        try:
+            # tag_feas = json.loads(chunk.get('tag_feas', '{}'))
+            tag_dict = eval(chunk['tag_feas'])  # 将字符串转换为字典
+            tag_feas = list(tag_dict.items())     # 提取所有键值对
+        except json.JSONDecodeError:
+            tag_feas = {}  # 如果解析失败，视为空
+
+        # 检查 chunk 是否包含所有 required_tags
+
+        for item, _ in tag_feas:
+            if item in required_tags:
+                filtered_chunks.append(chunk)
+                break
+
+    # 更新 ranks 的 chunks 和 total
+    filtered_ranks['chunks'] = filtered_chunks
+    filtered_ranks['total'] = len(filtered_chunks)
+
+    return filtered_ranks
+   
