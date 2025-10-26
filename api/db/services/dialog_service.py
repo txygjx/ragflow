@@ -641,7 +641,7 @@ def filter_chunks_by_tags(req, ranks):
     # 获取标签过滤条件
     required_tags = set(req.get('tag', []))
     if not required_tags:
-        return ranks  # 无标签条件，直接返回原结果,txyxtyu
+        return ranks  # 无标签条件，直接返回原结果
 
     # 复制 ranks 以避免修改原始数据
     filtered_ranks = ranks.copy()
@@ -652,8 +652,11 @@ def filter_chunks_by_tags(req, ranks):
         # 解析 tag_feas（字符串形式的 JSON）
         try:
             # tag_feas = json.loads(chunk.get('tag_feas', '{}'))
-            tag_dict = eval(chunk['tag_feas'])  # 将字符串转换为字典
-            tag_feas = list(tag_dict.items())     # 提取所有键值对
+            if chunk['tag_feas'] is None: #2025-10-20 bug修复，空值判断
+                return ranks
+            else:    
+                tag_dict = eval(chunk['tag_feas'])  # 将字符串转换为字典
+                tag_feas = list(tag_dict.items())     # 提取所有键值对
         except json.JSONDecodeError:
             tag_feas = {}  # 如果解析失败，视为空
 
