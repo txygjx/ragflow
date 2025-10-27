@@ -1467,7 +1467,39 @@ def retrieval_test(tenant_id):
             rank_feature=label_question(question, kbs)
         )
 
-        ranks = filter_chunks_by_tags(req, ranks) # 按标签过滤，新加的,测试测试
+        if req.get("tag"):
+            ranks = filter_chunks_by_tags(req, ranks) # 按标签过滤，新加的,测试测试            
+
+        if req.get("similar"):
+            "先通过req的块id，拿到块的向量"
+            # 构建 chunk_id 到 vector 的映射字典
+            chunk_map = {chunk['chunk_id']: chunk for chunk in ranks['chunks']}
+
+            # 使用示例：根据 chunk_id 获取对应的 vector
+            target_chunk_id = req.get("chunk_id")  # 替换为你要查找的 chunk_id
+            if target_chunk_id and isinstance(target_chunk_id, list):
+                chunk = chunk_map.get(target_chunk_id[0])
+            else:
+                chunk = chunk_map.get(target_chunk_id)
+            if chunk:
+                vector = chunk['vector']
+                question = chunk['content_with_weight']
+                ranks = settings.retrievaler.retrieval(
+                    question,
+                    embd_mdl,
+                    tenant_ids,
+                    kb_ids,
+                    page,
+                    size,
+                    similarity_threshold,
+                    vector_similarity_weight,
+                    top,
+                    doc_ids,
+                    rerank_mdl=rerank_mdl,
+                    highlight=highlight,
+                    rank_feature=label_question(question, kbs),
+                    custom_vector=vector
+                )
 
         if use_kg:
             ck = settings.kg_retrievaler.retrieval(question,
