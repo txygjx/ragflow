@@ -638,34 +638,45 @@ def filter_chunks_by_tags(req, ranks):
     """
     # 按照tag过滤，新加的代码
     import json
-    # 获取标签过滤条件
-    required_tags = set(req.get('tag', []))
+    from typing import Dict, Set
+    import ast
+    
+    # 如果用户没有设置tag字段的内容，则不处理
+    required_tags = set(req.get('tag', []))#required_tags: Set[str] = set(req.get('tag', []))req拿到的被转成py字典了,这里的字典值是字符串和列表
     if not required_tags:
-        return ranks  # 无标签条件，直接返回原结果
+        return ranks  
 
     # 复制 ranks 以避免修改原始数据
     filtered_ranks = ranks.copy()
     filtered_chunks = []
 
-    # 遍历 chunks，检查 tag_feas 是否包含所有 required_tags
-    for chunk in ranks['chunks']:
-        # 解析 tag_feas（字符串形式的 JSON）
+    # 获取上游接口检索出的块中，每个块的标签
+    for chunk in ranks.get('chunks', []):
+        raw_tag_feas = chunk.get('tag_feas')# 获取检索接口返回内容rank中的tag_feas字段
+        if raw_tag_feas is None or raw_tag_feas == '{}':#字段内容不能为空
+            continue  
         try:
-            # tag_feas = json.loads(chunk.get('tag_feas', '{}'))
-            if chunk['tag_feas'] is None: #2025-10-20 bug修复，空值判断
-                return ranks
-            else:    
-                tag_dict = eval(chunk['tag_feas'])  # 将字符串转换为字典
-                tag_feas = list(tag_dict.items())     # 提取所有键值对
-        except json.JSONDecodeError:
-            tag_feas = {}  # 如果解析失败，视为空
+            tag_dict = ast.literal_eval(raw_tag_feas)# 解析字段内容
+            if not isinstance(tag_dict, dict):
+                continue
+        except json.JSONDecodeError as e:
+            logging.warning(f"chunk id={chunk.get('id')} tag_feas 解析失败: {raw_tag_feas[:100]}, error: {e}")
+            continue
 
-        # 检查 chunk 是否包含所有 required_tags
+        # 提取符合标签条件的块
+        chunk_tags: Set[str] = set(tag_dict.keys())# 提取检索块的标签
 
-        for item, _ in tag_feas:
-            if item in required_tags:
-                filtered_chunks.append(chunk)
-                break
+        # 查看检索接口块中有没有符合用户请求的tag，只要有一个就算符合
+        common_tags = chunk_tags.intersection(required_tags)
+
+        # 2. 检查交集是否为空
+        if common_tags:
+            filtered_chunks.append(chunk)
+        else:
+            print("没有发现匹配的标签。")
+        
+        # if required_tags.issubset(chunk_tags): # 优化，全有才符合用户请求
+                #     filtered_chunks.append(chunk)
 
     # 更新 ranks 的 chunks 和 total
     filtered_ranks['chunks'] = filtered_chunks

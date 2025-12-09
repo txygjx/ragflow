@@ -71,7 +71,7 @@ class Dealer:
                emb_mdl=None,
                highlight=False,
                rank_feature: dict | None = None,
-               custom_vector: list = []
+               custom_vector: list | None = None
                ):
         filters = self.get_filters(req)
         orderBy = OrderByExpr()
@@ -108,7 +108,7 @@ class Dealer:
                 total = self.dataStore.getTotal(res)
                 logging.debug("Dealer.search TOTAL: {}".format(total))
             else:
-                if custom_vector:
+                if custom_vector is not None and isinstance(custom_vector, list) and len(custom_vector) > 0:
                     q_vec = custom_vector
                     vector_column_name = f"q_{len(q_vec)}_vec"
                     similarity_threshold = req.get("similarity", 0.1)
@@ -365,7 +365,7 @@ class Dealer:
     def retrieval(self, question, embd_mdl, tenant_ids, kb_ids, page, page_size, similarity_threshold=0.2,
                   vector_similarity_weight=0.3, top=1024, doc_ids=None, aggs=True,
                   rerank_mdl=None, highlight=False,
-                  rank_feature: dict | None = {PAGERANK_FLD: 10},custom_vector: list = []):
+                  rank_feature: dict | None = {PAGERANK_FLD: 10}, custom_vector: list | None = None,):
         ranks = {"total": 0, "chunks": [], "doc_aggs": {}}
         if not question:
             return ranks
@@ -452,36 +452,6 @@ class Dealer:
                                                        v in sorted(ranks["doc_aggs"].items(),
                                                                    key=lambda x: x[1]["count"] * -1)]
         ranks["chunks"] = ranks["chunks"][:page_size]
-
-        return ranks
-
-    def custom_retrieval(self, question=None, embd_mdl=None, tenant_ids=None, kb_ids=None, 
-                     page=1, page_size=30, similarity_threshold=0.2, 
-                     vector_similarity_weight=0.3, top=1024, doc_ids=None, aggs=True, 
-                     rerank_mdl=None, highlight=False, rank_feature: dict | None = {PAGERANK_FLD: 10}, 
-                     chunk_id=None, custom_vector: list[float] | None = None):
-    
-        ranks = settings.retrievaler.retrieval(
-            question,
-            embd_mdl,
-            tenant_ids,
-            kb_ids,
-            page,
-            size,
-            similarity_threshold,
-            vector_similarity_weight,
-            top,
-            doc_ids,
-            rerank_mdl=rerank_mdl,
-            highlight=highlight,
-            rank_feature=label_question(question, kbs)
-        )
-        
-        req = {"kb_ids": kb_ids, "doc_ids": doc_ids, "page": math.ceil(page_size * page / RERANK_LIMIT), 
-            "size": RERANK_LIMIT, "question": question if custom_vector is None else "", 
-            "vector": custom_vector if custom_vector else True,  # 关键: 传入list[float]
-            "topk": top, "similarity": similarity_threshold, "available_int": 1}
-                
         return ranks
 
     def sql_retrieval(self, sql, fetch_size=128, format="json"):
